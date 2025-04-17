@@ -23,4 +23,10 @@ public class BlockScreenActivity extends Activity {
     public void onBackPressed() {
         // Prevent back button exit
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        finish(); // Close the activity when it loses focus
+    }
 }
