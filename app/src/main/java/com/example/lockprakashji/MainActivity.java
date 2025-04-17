@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
     private AppListAdapter appListAdapter; // Use the adapter
     private List<AppInfo> installedApps; // Use the AppInfo model
     private List<String> selectedAppPackages = new ArrayList<>(); // Keep track of selected package names
-    private long focusDurationMillis = 0;
+    public long focusDurationMillis = 0;
     private CountDownTimer focusTimer;
     private boolean isFocusSessionActive = false;
 
