@@ -47,7 +47,8 @@ public class LockingService extends Service {
 
                     Intent lockIntent = new Intent(LockingService.this, LockScreenActivity.class);
                     lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                    lockIntent.putExtra("duration", MainActivity.focusDurationMillis);
+                    long duration = MainActivity.focusDurationMillis; // Get the duration here
+                    lockIntent.putExtra("duration", duration);
                     startActivity(lockIntent);
                 }
 
