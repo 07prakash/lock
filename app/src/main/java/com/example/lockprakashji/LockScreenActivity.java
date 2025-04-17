@@ -1,5 +1,7 @@
 package com.example.lockprakashji;
 
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.widget.TextView;
@@ -11,11 +13,14 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class LockScreenActivity extends AppCompatActivity {
 
     private TextView textViewTimer;
+    private TextView lockedAppTextView;
+
     private CountDownTimer countDownTimer;
 
     @Override
@@ -24,7 +29,7 @@ public class LockScreenActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_lock_screen);
 
-        textViewTimer = findViewById(R.id.textViewTimer);
+        initializeViews();
 
         // Handle window insets for a full-screen experience
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -36,33 +41,72 @@ public class LockScreenActivity extends AppCompatActivity {
         // Prevent dismissing the activity by tapping outside
         setFinishOnTouchOutside(false);
 
-        // Retrieve the duration from the intent, defaulting to 0 if not provided
+        processIntentData();
+    }
+
+    private void initializeViews() {
+        textViewTimer = findViewById(R.id.textViewTimer);
+        lockedAppTextView = findViewById(R.id.lockedAppTextView);
+    }
+
+    private void processIntentData() {
+        String blockedAppPackage = getIntent().getStringExtra("blocked_app");
         long durationMillis = getIntent().getLongExtra("duration", 0);
 
-        // Start the countdown timer if a valid duration is provided
-        if (durationMillis > 0) {
+        if (blockedAppPackage != null && durationMillis > 0) {
+            displayLockedAppMessage(blockedAppPackage);
             startCountdown(durationMillis);
         } else {
-            // Handle case where duration is not provided (e.g., display a default message)
-            textViewTimer.setText("No session duration provided.");
+            handleInvalidData();
         }
     }
 
-    private void startCountdown(long durationMillis) {
-        countDownTimer = new CountDownTimer(durationMillis, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                String timeLeft = String.format("%02d:%02d",
-                        TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished),
-                        TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished) % 60);
-                textViewTimer.setText(timeLeft);
-            }
+    private void displayLockedAppMessage(String blockedAppPackage) {
+        try {
+            PackageManager packageManager = getPackageManager();
+            String appName = packageManager.getApplicationLabel(packageManager.getApplicationInfo(blockedAppPackage, PackageManager.GET_META_DATA)).toString();
+            String message = String.format(Locale.getDefault(), "⚠️ %s is locked during focus mode.", appName);
+            lockedAppTextView.setText(message);
+        } catch (PackageManager.NameNotFoundException e) {
+            lockedAppTextView.setText(String.format(Locale.getDefault(), "⚠️ %s is locked during focus mode.", blockedAppPackage));
+        }
+    }
 
-            @Override
-            public void onFinish() {
-                textViewTimer.setText("Session Over");
-            }
-        }.start();
+    private void handleInvalidData() {
+        lockedAppTextView.setText("Invalid session data.");
+        textViewTimer.setText("--:--");
+    }
+
+    private void startCountdown(final long durationMillis) {
+        updateTimerText(durationMillis); // Initial display
+
+        countDownTimer = new CountDownTimer(durationMillis, 1000) { // Tick every 1 second
+        @Override
+        public void onTick(long millisUntilFinished) {
+            updateTimerText(millisUntilFinished);
+        }
+
+        @Override
+        public void onFinish() {
+            endSession();
+        }
+    }.start();
+    }
+
+    private void updateTimerText(long millisUntilFinished) {
+        if (millisUntilFinished <= 0) {
+            textViewTimer.setText("00:00");
+        } else {
+            long minutes = TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished);
+            long seconds = TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished) % 60;
+            String timeLeft = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+            textViewTimer.setText(timeLeft);
+        }
+    }
+
+    private void endSession() {
+        textViewTimer.setText("Session Over");
+        finish(); // Close the activity when the timer finishes
     }
 
     @Override

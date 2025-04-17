@@ -16,8 +16,10 @@ public class AppLockService extends AccessibilityService {
         String foregroundApp = event.getPackageName().toString();
 
         if (!MainActivity.allowedPackages.contains(foregroundApp)) {
-            Intent intent = new Intent(this, BlockScreenActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent intent = new Intent(this, LockScreenActivity.class);
+            intent.putExtra("blocked_app", foregroundApp);
+            intent.putExtra("duration", MainActivity.focusDurationMillis); // Assuming this is where the duration is stored
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(intent);
         }
     }
