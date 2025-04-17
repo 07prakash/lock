@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 public class LockScreenActivity extends AppCompatActivity {
 
-    private TextView timerTextView;
+    private TextView textViewTimer;
     private CountDownTimer countDownTimer;
 
     @Override
@@ -24,7 +24,7 @@ public class LockScreenActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_lock_screen);
 
-        timerTextView = findViewById(R.id.timerTextView);
+        textViewTimer = findViewById(R.id.textViewTimer);
 
         // Handle window insets for a full-screen experience
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -44,7 +44,7 @@ public class LockScreenActivity extends AppCompatActivity {
             startCountdown(durationMillis);
         } else {
             // Handle case where duration is not provided (e.g., display a default message)
-            timerTextView.setText("No session duration provided.");
+            textViewTimer.setText("No session duration provided.");
         }
     }
 
@@ -55,12 +55,12 @@ public class LockScreenActivity extends AppCompatActivity {
                 String timeLeft = String.format("%02d:%02d",
                         TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished),
                         TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished) % 60);
-                timerTextView.setText(timeLeft);
+                textViewTimer.setText(timeLeft);
             }
 
             @Override
             public void onFinish() {
-                timerTextView.setText("Session Over");
+                textViewTimer.setText("Session Over");
             }
         }.start();
     }
