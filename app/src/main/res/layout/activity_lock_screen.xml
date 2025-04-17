@@ -13,4 +13,17 @@
         android:textSize="24sp"
         android:layout_gravity="center" />
 
+    <TextView
+        android:id="@+id/textViewTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="29:59"
+        android:textColor="#ffffff"
+        android:textSize="48sp" />
+
+    <Button
+        android:id="@+id/buttonUnlockEarly"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Unlock Early (₹)" />
 </LinearLayout>

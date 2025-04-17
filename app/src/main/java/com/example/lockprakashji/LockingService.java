@@ -47,6 +47,7 @@ public class LockingService extends Service {
 
                     Intent lockIntent = new Intent(LockingService.this, LockScreenActivity.class);
                     lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    lockIntent.putExtra("duration", MainActivity.focusDurationMillis);
                     startActivity(lockIntent);
                 }
 
@@ -83,7 +84,7 @@ public class LockingService extends Service {
     private String getForegroundApp() {
         UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
         long time = System.currentTimeMillis();
-        List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 10, time);
+        List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000, time);
 
         if (appList == null || appList.isEmpty()) {
             return null;
