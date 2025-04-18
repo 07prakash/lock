@@ -1,19 +1,27 @@
 package com.example.lockprakashji;
 
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AppOpsManager;
+import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Button;
-import android.widget.NumberPicker;
+import android.widget.CheckBox;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -21,12 +29,16 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 // Implement the listener interface from the adapter
+
+import android.widget.TimePicker;
+
 
 public class MainActivity extends AppCompatActivity implements AppListAdapter.OnAppSelectedListener {
     public static List<String> allowedPackages = new ArrayList<>();
@@ -35,11 +47,14 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
     private static final String TAG = "MainActivity";
 
     private RecyclerView recyclerViewApps;
-    private NumberPicker numberPickerDuration;
+    private TextView textViewDuration;
     private Button buttonStartFocus;
     private AppListAdapter appListAdapter; // Use the adapter
     private List<AppInfo> installedApps; // Use the AppInfo model
     private List<String> selectedAppPackages = new ArrayList<>(); // Keep track of selected package names
+
+    private CheckBox checkBoxStrictMode;
+
     public long focusDurationMillis = 0;
     private CountDownTimer focusTimer;
     private boolean isFocusSessionActive = false;
@@ -51,10 +66,12 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
 
 
         recyclerViewApps = findViewById(R.id.recyclerViewApps);
-        numberPickerDuration = findViewById(R.id.numberPickerDuration);
+        textViewDuration = findViewById(R.id.textViewDuration);
         buttonStartFocus = findViewById(R.id.buttonStartFocus);
+        checkBoxStrictMode = findViewById(R.id.checkBoxStrictMode);
 
-        if (!hasUsageStatsPermission()) {
+        requestUsageStatsPermission();
+        if (!checkUsageStatsPermission()) {
             startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
             Toast.makeText(this, "Please grant Usage Access permission", Toast.LENGTH_LONG).show();
         }
@@ -62,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
         // Initialize the list
         installedApps = new ArrayList<>();
 
-        setupNumberPicker(numberPickerDuration);
+        setupTimePicker();
         setupRecyclerView(appListAdapter); // Setup adapter here
         loadInstalledApps(installedApps); // Load data
 
@@ -75,17 +92,34 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
         });
     }
 
-    private void setupNumberPicker(NumberPicker numberPickerDuration) {
-        this.numberPickerDuration.setMinValue(1); // Minimum 1 minute
-        this.numberPickerDuration.setMaxValue(180); // Maximum 3 hours (180 minutes)
-        this.numberPickerDuration.setValue(30); // Default value 30 minutes
-        this.numberPickerDuration.setWrapSelectorWheel(false);
-        this.numberPickerDuration.setOnValueChangedListener((picker, oldVal, newVal) -> {
-            focusDurationMillis = TimeUnit.MINUTES.toMillis(newVal);
-            Log.d(TAG, "Selected duration: " + newVal + " minutes (" + focusDurationMillis + " ms)");
+    private void setupTimePicker() {
+        textViewDuration.setOnClickListener(v -> {
+            // Get current time
+            Calendar currentTime = Calendar.getInstance();
+            int hour = currentTime.get(Calendar.HOUR_OF_DAY);
+            int minute = currentTime.get(Calendar.MINUTE);
+
+            // Create a TimePickerDialog
+            TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
+                @Override
+                public void onTimeSet(TimePicker view, int selectedHour, int selectedMinute) {
+                    // Calculate duration in milliseconds from the selected time
+                    Calendar selectedTime = Calendar.getInstance();
+                    selectedTime.set(Calendar.HOUR_OF_DAY, selectedHour);
+                    selectedTime.set(Calendar.MINUTE, selectedMinute);
+                    selectedTime.set(Calendar.SECOND, 0); // Ensure seconds are set to 0
+                    long selectedMillis = selectedTime.getTimeInMillis();
+                    long currentMillis = Calendar.getInstance().getTimeInMillis();
+                    focusDurationMillis = selectedMillis - currentMillis;
+                    if (focusDurationMillis <= 0) {
+                        focusDurationMillis += TimeUnit.DAYS.toMillis(1); // Add 24 hours if the time is in the past
+                    }
+                    // Update the TextView with the selected time
+                    textViewDuration.setText(String.format("%02d:%02d", selectedHour, selectedMinute));
+                }
+            }, hour, minute, false); // 'false' for 12-hour format, 'true' for 24-hour
+            timePickerDialog.show();
         });
-        // Set initial duration
-        focusDurationMillis = TimeUnit.MINUTES.toMillis(this.numberPickerDuration.getValue());
     }
 
     private void setupRecyclerView(AppListAdapter appListAdapter) {
@@ -171,18 +205,17 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
             Toast.makeText(this, "Please select at least one app to allow", Toast.LENGTH_SHORT).show();
             return;
         }
+
         if (focusDurationMillis <= 0) {
-             focusDurationMillis = TimeUnit.MINUTES.toMillis(numberPickerDuration.getValue());
-             if (focusDurationMillis <= 0) { // Double check in case initial value was invalid
-                 Toast.makeText(this, "Please set a valid duration", Toast.LENGTH_SHORT).show();
-                 return;
-             }
+            Toast.makeText(this, "Please select a valid time", Toast.LENGTH_SHORT).show();
+            return;
         }
-        //  Add this block to update the allowed packages
+
         allowedPackages.clear();
         allowedPackages.addAll(selectedAppPackages);
 
         isFocusSessionActive = true;
+
         buttonStartFocus.setText("Focus Session Active");
         buttonStartFocus.setEnabled(false); // Disable start button during session
         numberPickerDuration.setEnabled(false); // Disable picker during session
@@ -194,6 +227,11 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
         Log.d(TAG, "Starting focus session for " + focusDurationMillis + " ms. Allowed apps: " + selectedAppPackages);
         Toast.makeText(this, "Focus session started! Timer running.", Toast.LENGTH_LONG).show();
 
+        // Pass duration and strict mode to the service
+        Intent serviceIntent = new Intent(this, LockingService.class);
+        serviceIntent.putExtra("duration", focusDurationMillis);
+        serviceIntent.putExtra("strictMode", checkBoxStrictMode.isChecked()); // Pass strict mode state
+        ContextCompat.startForegroundService(this, serviceIntent);
         focusTimer = new CountDownTimer(focusDurationMillis, 1000) {
              @Override
              public void onTick(long millisUntilFinished) {
@@ -211,8 +249,6 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
              }
          }.start();
 
-        Intent serviceIntent = new Intent(this, LockingService.class);
-        ContextCompat.startForegroundService(this, serviceIntent);
 
     }
 //
@@ -243,11 +279,36 @@ public class MainActivity extends AppCompatActivity implements AppListAdapter.On
         }
         // Consider if the service should continue running even if the activity is destroyed
     }
-    private boolean hasUsageStatsPermission() {
+    private boolean checkUsageStatsPermission() {
         AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
         int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
                 android.os.Process.myUid(), getPackageName());
         return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
+    private void requestUsageStatsPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!checkUsageStatsPermission()) {
+                startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+            }
+        }
+    }
+
+    // Permissions for Android 13+
+    private static final int NOTIFICATION_PERMISSION_CODE = 123; // Unique request code
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_CODE);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // Handle permission results if necessary
     }
 
 }
